@@ -18,5 +18,11 @@ namespace Azure.Functions.Extensions.SQS
         
         [AutoResolve]
         public string ExponentialRetry { get; set; }
+        
+        [AutoResolve]
+        public string BaseBackOff { get; set; }
+        
+        [AutoResolve]
+        public string MaxBackOff { get; set; }
     }
 }

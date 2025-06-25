@@ -30,9 +30,9 @@ namespace Azure.Functions.Extensions.SQS
             SqsQueueOptions = sqsQueueOptions;
             TriggerParameters = triggerParameters;
 
-            SqsQueueOptions.Value.MaxNumberOfMessages = this.SqsQueueOptions.Value.MaxNumberOfMessages ?? 5;
-            SqsQueueOptions.Value.PollingInterval = this.SqsQueueOptions.Value.PollingInterval ?? TimeSpan.FromSeconds(5);
-            SqsQueueOptions.Value.VisibilityTimeout = this.SqsQueueOptions.Value.VisibilityTimeout ?? TimeSpan.FromSeconds(5);
+            SqsQueueOptions.Value.MaxNumberOfMessages = SqsQueueOptions.Value.MaxNumberOfMessages ?? 5;
+            SqsQueueOptions.Value.PollingInterval = SqsQueueOptions.Value.PollingInterval ?? TimeSpan.FromSeconds(5);
+            SqsQueueOptions.Value.VisibilityTimeout = SqsQueueOptions.Value.VisibilityTimeout ?? TimeSpan.FromSeconds(5);
 
             AmazonSQSClient = AmazonSQSClientFactory.Build(triggerParameters);
         }
@@ -54,10 +54,10 @@ namespace Azure.Functions.Extensions.SQS
         public Task StartAsync(CancellationToken cancellationToken)
         {
             TriggerTimer = new Timer(
-                callback: async (state) => await this.OnTriggerCallback(),
+                callback: async (state) => await OnTriggerCallback(),
                 state: null,
                 dueTime: TimeSpan.FromSeconds(0),
-                period: this.SqsQueueOptions.Value.PollingInterval.Value);
+                period: SqsQueueOptions.Value.PollingInterval.Value);
 
             return Task.CompletedTask;
         }
@@ -72,9 +72,9 @@ namespace Azure.Functions.Extensions.SQS
                 AttributeNames = { "All" }
             };
 
-            var result = await this.AmazonSQSClient.ReceiveMessageAsync(getMessageRequest);
+            var result = await AmazonSQSClient.ReceiveMessageAsync(getMessageRequest);
             Console.WriteLine($"Invoked the queue trigger at '{DateTime.UtcNow} UTC'. Fetched messages count: '{result.Messages.Count}'.");
-            await Task.WhenAll(result.Messages.Select(message => this.ProcessMessage(message)));
+            await Task.WhenAll(result.Messages.Select(message => ProcessMessage(message)));
         }
 
         private async Task ProcessMessage(Message message)
@@ -100,9 +100,19 @@ namespace Azure.Functions.Extensions.SQS
             else if (bool.TryParse(TriggerParameters.ExponentialRetry, out var exponentialRetry) && exponentialRetry)
             {
                 int.TryParse(message.Attributes["ApproximateReceiveCount"], out int approximateReceiveCount);
-                await AmazonSQSClient.ChangeMessageVisibilityAsync(TriggerParameters.QueueUrl, message.ReceiptHandle, approximateReceiveCount * 60);
-            } 
-            
+                
+                int baseBackOff = int.TryParse(TriggerParameters.BaseBackOff, out var parsedBaseBackOff) ? parsedBaseBackOff : 30;
+                int maxBackOff = int.TryParse(TriggerParameters.BaseBackOff, out var parsedMaxBackOff) ? parsedMaxBackOff : 960;
+                int newVisibilityTimeout = Math.Min(baseBackOff * (int)Math.Pow(2, approximateReceiveCount - 1), maxBackOff);
+                int jitter = new Random().Next(1, 21);
+                
+                await AmazonSQSClient.ChangeMessageVisibilityAsync(new ChangeMessageVisibilityRequest
+                {
+                    QueueUrl = TriggerParameters.QueueUrl,
+                    ReceiptHandle = message.ReceiptHandle,
+                    VisibilityTimeout = newVisibilityTimeout + jitter
+                });
+            }
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
