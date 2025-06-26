@@ -10,9 +10,9 @@ namespace Azure.Functions.Extensions.SQS
     {
         private object Value { get; set; }
 
-        public Type Type => typeof(Message);
+        public Type Type => typeof(string);
 
-        public SqsQueueMessageValueProvider(object value)
+        public SqsQueueMessageValueProvider(string value)
         {
             this.Value = value;
         }

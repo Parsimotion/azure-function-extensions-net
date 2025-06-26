@@ -26,38 +26,38 @@ namespace Azure.Functions.Extensions.SQS
 
         public SqsQueueTriggerListener(SqsQueueTriggerAttribute triggerParameters, IOptions<SqsQueueOptions> sqsQueueOptions, ITriggeredFunctionExecutor executor)
         {
-            this.Executor = executor;
-            this.SqsQueueOptions = sqsQueueOptions;
-            this.TriggerParameters = triggerParameters;
+            Executor = executor;
+            SqsQueueOptions = sqsQueueOptions;
+            TriggerParameters = triggerParameters;
 
-            this.SqsQueueOptions.Value.MaxNumberOfMessages = this.SqsQueueOptions.Value.MaxNumberOfMessages ?? 5;
-            this.SqsQueueOptions.Value.PollingInterval = this.SqsQueueOptions.Value.PollingInterval ?? TimeSpan.FromSeconds(5);
-            this.SqsQueueOptions.Value.VisibilityTimeout = this.SqsQueueOptions.Value.VisibilityTimeout ?? TimeSpan.FromSeconds(5);
+            SqsQueueOptions.Value.MaxNumberOfMessages = SqsQueueOptions.Value.MaxNumberOfMessages ?? 5;
+            SqsQueueOptions.Value.PollingInterval = SqsQueueOptions.Value.PollingInterval ?? TimeSpan.FromSeconds(5);
+            SqsQueueOptions.Value.VisibilityTimeout = SqsQueueOptions.Value.VisibilityTimeout ?? TimeSpan.FromSeconds(5);
 
-            this.AmazonSQSClient = AmazonSQSClientFactory.Build(triggerParameters);
+            AmazonSQSClient = AmazonSQSClientFactory.Build(triggerParameters);
         }
 
         public void Cancel()
         {
-            this.Dispose();
+            Dispose();
         }
 
         public void Dispose()
         {
-            this.AmazonSQSClient?.Dispose();
-            this.AmazonSQSClient = null;
+            AmazonSQSClient?.Dispose();
+            AmazonSQSClient = null;
 
-            this.TriggerTimer?.Dispose();
-            this.TriggerTimer = null;
+            TriggerTimer?.Dispose();
+            TriggerTimer = null;
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            this.TriggerTimer = new Timer(
-                callback: async (state) => await this.OnTriggerCallback(),
+            TriggerTimer = new Timer(
+                callback: async (state) => await OnTriggerCallback(),
                 state: null,
                 dueTime: TimeSpan.FromSeconds(0),
-                period: this.SqsQueueOptions.Value.PollingInterval.Value);
+                period: SqsQueueOptions.Value.PollingInterval.Value);
 
             return Task.CompletedTask;
         }
@@ -66,14 +66,15 @@ namespace Azure.Functions.Extensions.SQS
         {
             var getMessageRequest = new ReceiveMessageRequest
             {
-                QueueUrl = this.TriggerParameters.QueueUrl,
-                MaxNumberOfMessages = this.SqsQueueOptions.Value.MaxNumberOfMessages.Value,
-                VisibilityTimeout = (int)this.SqsQueueOptions.Value.VisibilityTimeout.Value.TotalSeconds,
+                QueueUrl = TriggerParameters.QueueUrl,
+                MaxNumberOfMessages = SqsQueueOptions.Value.MaxNumberOfMessages.Value,
+                VisibilityTimeout = (int)SqsQueueOptions.Value.VisibilityTimeout.Value.TotalSeconds,
+                AttributeNames = { "All" }
             };
 
-            var result = await this.AmazonSQSClient.ReceiveMessageAsync(getMessageRequest);
+            var result = await AmazonSQSClient.ReceiveMessageAsync(getMessageRequest);
             Console.WriteLine($"Invoked the queue trigger at '{DateTime.UtcNow} UTC'. Fetched messages count: '{result.Messages.Count}'.");
-            await Task.WhenAll(result.Messages.Select(message => this.ProcessMessage(message)));
+            await Task.WhenAll(result.Messages.Select(message => ProcessMessage(message)));
         }
 
         private async Task ProcessMessage(Message message)
@@ -85,22 +86,38 @@ namespace Azure.Functions.Extensions.SQS
                 TriggerDetails = new Dictionary<string, string>(),
             };
 
-            var functionExecutionResult = await this.Executor.TryExecuteAsync(triggerData, CancellationToken.None);
+            var functionExecutionResult = await Executor.TryExecuteAsync(triggerData, CancellationToken.None);
             if (functionExecutionResult.Succeeded)
             {
                 var deleteMessageRequest = new DeleteMessageRequest
                 {
-                    QueueUrl = this.TriggerParameters.QueueUrl,
+                    QueueUrl = TriggerParameters.QueueUrl,
                     ReceiptHandle = message.ReceiptHandle,
                 };
 
-                await this.AmazonSQSClient.DeleteMessageAsync(deleteMessageRequest);
+                await AmazonSQSClient.DeleteMessageAsync(deleteMessageRequest);
+            }
+            else if (bool.TryParse(TriggerParameters.ExponentialRetry, out var exponentialRetry) && exponentialRetry)
+            {
+                int.TryParse(message.Attributes["ApproximateReceiveCount"], out int approximateReceiveCount);
+                
+                int baseBackOff = int.TryParse(TriggerParameters.BaseBackOff, out var parsedBaseBackOff) ? parsedBaseBackOff : 30;
+                int maxBackOff = int.TryParse(TriggerParameters.MaxBackOff, out var parsedMaxBackOff) ? parsedMaxBackOff : 960;
+                int newVisibilityTimeout = Math.Min(baseBackOff * (int)Math.Pow(2, approximateReceiveCount), maxBackOff);
+                int jitter = new Random().Next(1, baseBackOff/2);
+                
+                await AmazonSQSClient.ChangeMessageVisibilityAsync(new ChangeMessageVisibilityRequest
+                {
+                    QueueUrl = TriggerParameters.QueueUrl,
+                    ReceiptHandle = message.ReceiptHandle,
+                    VisibilityTimeout = newVisibilityTimeout + jitter
+                });
             }
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            this.Dispose();
+            Dispose();
             return Task.CompletedTask;
         }
     }

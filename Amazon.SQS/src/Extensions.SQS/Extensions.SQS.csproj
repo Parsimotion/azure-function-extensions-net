@@ -3,20 +3,20 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <PackageId>AzureFunctions.Extension.SQS</PackageId>
-    <Authors>Laveesh Bansal</Authors>
+    <PackageId>Parsimotion.AzureFunctions.Extension.SQS</PackageId>
+    <Authors>Parsimotion; Laveesh Bansal</Authors>
     <Company />
     <Product>Azure.Functions.Extension.SQS</Product>
     <Description>Amazon SQS extension for Azure Functions</Description>
     <RepositoryType>Github</RepositoryType>
     <AssemblyName>Azure.Functions.Extensions.SQS</AssemblyName>
     <RootNamespace>Azure.Functions.Extensions.SQS</RootNamespace>
-    <Version>2.0.0</Version>
+    <Version>2.1.0</Version>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageTags>Azure Functions bindings extension SQS</PackageTags>
-    <PackageProjectUrl>https://github.com/laveeshb/azure-function-extensions-net/tree/master/Amazon.SQS</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/laveeshb/azure-function-extensions-net/tree/master/Amazon.SQS</RepositoryUrl>
-    <PackageReleaseNotes>https://github.com/laveeshb/azure-function-extensions-net/releases</PackageReleaseNotes>
+    <PackageProjectUrl>https://github.com/Parsimotion/azure-function-extensions-net</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Parsimotion/azure-function-extensions-net</RepositoryUrl>
+    <PackageReleaseNotes>https://github.com/Parsimotion/azure-function-extensions-net/releases</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

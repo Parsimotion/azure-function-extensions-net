@@ -1,4 +1,6 @@
 ﻿
+using System.Linq;
+
 namespace Azure.Functions.Extensions.SQS
 {
     using System;
@@ -33,9 +35,10 @@ namespace Azure.Functions.Extensions.SQS
 
         public Task<ITriggerData> BindAsync(object value, ValueBindingContext context)
         {
+            var message = value as Message;
             return Task.FromResult<ITriggerData>(new TriggerData(
-                valueProvider: new SqsQueueMessageValueProvider(value),
-                bindingData: new Dictionary<string, object>()));
+                valueProvider: new SqsQueueMessageValueProvider(message.Body),
+                bindingData: message.Attributes.ToDictionary(x => x.Key.ToString(), x => x.Value as object)));
         }
 
         public Task<IListener> CreateListenerAsync(ListenerFactoryContext context)

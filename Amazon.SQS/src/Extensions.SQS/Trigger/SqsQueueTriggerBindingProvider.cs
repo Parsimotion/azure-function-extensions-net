@@ -16,8 +16,8 @@ namespace Azure.Functions.Extensions.SQS
 
         public SqsQueueTriggerBindingProvider(IOptions<SqsQueueOptions> sqsQueueOptions, INameResolver nameResolver)
         {
-            this.SqsQueueOptions = sqsQueueOptions;
-            this.NameResolver = nameResolver;
+            SqsQueueOptions = sqsQueueOptions;
+            NameResolver = nameResolver;
         }
 
         public Task<ITriggerBinding> TryCreateAsync(TriggerBindingProviderContext context)
@@ -25,22 +25,25 @@ namespace Azure.Functions.Extensions.SQS
             var triggerAttribute = context.Parameter.GetCustomAttribute<SqsQueueTriggerAttribute>(inherit: false);
             return triggerAttribute is null
                 ? Task.FromResult<ITriggerBinding>(null)
-                : Task.FromResult<ITriggerBinding>(new SqsQueueTriggerBinding(parameterInfo: context.Parameter, triggerParameters: this.ResolveTriggerParameters(triggerAttribute), sqsQueueOptions: this.SqsQueueOptions));
+                : Task.FromResult<ITriggerBinding>(new SqsQueueTriggerBinding(parameterInfo: context.Parameter, triggerParameters: ResolveTriggerParameters(triggerAttribute), sqsQueueOptions: SqsQueueOptions));
         }
 
         private SqsQueueTriggerAttribute ResolveTriggerParameters(SqsQueueTriggerAttribute triggerAttribute)
         {
             return new SqsQueueTriggerAttribute
             {
-                AWSKeyId = this.Resolve(triggerAttribute.AWSKeyId),
-                AWSAccessKey = this.Resolve(triggerAttribute.AWSAccessKey),
-                QueueUrl = this.Resolve(triggerAttribute.QueueUrl),
+                AWSKeyId = Resolve(triggerAttribute.AWSKeyId),
+                AWSAccessKey = Resolve(triggerAttribute.AWSAccessKey),
+                QueueUrl = Resolve(triggerAttribute.QueueUrl),
+                ExponentialRetry = Resolve(triggerAttribute.ExponentialRetry),
+                BaseBackOff = Resolve(triggerAttribute.BaseBackOff),
+                MaxBackOff = Resolve(triggerAttribute.MaxBackOff)
             };
         }
 
         private string Resolve(string property)
         {
-            return this.NameResolver.Resolve(property) ?? this.NameResolver.ResolveWholeString(property) ?? property;
+            return NameResolver.Resolve(property) ?? NameResolver.ResolveWholeString(property) ?? property;
         }
     }
 }
