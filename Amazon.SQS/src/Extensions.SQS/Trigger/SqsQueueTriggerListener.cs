@@ -100,17 +100,20 @@ namespace Azure.Functions.Extensions.SQS
             else if (bool.TryParse(TriggerParameters.ExponentialRetry, out var exponentialRetry) && exponentialRetry)
             {
                 int.TryParse(message.Attributes["ApproximateReceiveCount"], out int approximateReceiveCount);
+                int finalApproximateReceiveCount = Math.Min(approximateReceiveCount, 10);
                 
                 int baseBackOff = int.TryParse(TriggerParameters.BaseBackOff, out var parsedBaseBackOff) ? parsedBaseBackOff : 30;
                 int maxBackOff = int.TryParse(TriggerParameters.MaxBackOff, out var parsedMaxBackOff) ? parsedMaxBackOff : 960;
-                int newVisibilityTimeout = Math.Min(baseBackOff * (int)Math.Pow(2, approximateReceiveCount), maxBackOff);
+                long visibilityTimeout = Math.Min(baseBackOff * (long)Math.Pow(2, finalApproximateReceiveCount), maxBackOff);
                 int jitter = new Random().Next(1, baseBackOff/2);
+                
+                int newVisibilityTimeout = (int)Math.Min(Math.Max(baseBackOff, visibilityTimeout) + jitter, 43200);
                 
                 await AmazonSQSClient.ChangeMessageVisibilityAsync(new ChangeMessageVisibilityRequest
                 {
                     QueueUrl = TriggerParameters.QueueUrl,
                     ReceiptHandle = message.ReceiptHandle,
-                    VisibilityTimeout = newVisibilityTimeout + jitter
+                    VisibilityTimeout = newVisibilityTimeout
                 });
             }
         }
