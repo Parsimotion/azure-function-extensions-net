@@ -30,9 +30,8 @@ namespace Azure.Functions.Extensions.SQS
             SqsQueueOptions = sqsQueueOptions;
             TriggerParameters = triggerParameters;
 
-            SqsQueueOptions.Value.MaxNumberOfMessages = SqsQueueOptions.Value.MaxNumberOfMessages ?? 5;
+            SqsQueueOptions.Value.MaxNumberOfMessages = SqsQueueOptions.Value.MaxNumberOfMessages ?? 10;
             SqsQueueOptions.Value.PollingInterval = SqsQueueOptions.Value.PollingInterval ?? TimeSpan.FromSeconds(5);
-            SqsQueueOptions.Value.VisibilityTimeout = SqsQueueOptions.Value.VisibilityTimeout ?? TimeSpan.FromSeconds(5);
 
             AmazonSQSClient = AmazonSQSClientFactory.Build(triggerParameters);
         }
@@ -68,7 +67,6 @@ namespace Azure.Functions.Extensions.SQS
             {
                 QueueUrl = TriggerParameters.QueueUrl,
                 MaxNumberOfMessages = SqsQueueOptions.Value.MaxNumberOfMessages.Value,
-                VisibilityTimeout = (int)SqsQueueOptions.Value.VisibilityTimeout.Value.TotalSeconds,
                 AttributeNames = { "All" }
             };
 
