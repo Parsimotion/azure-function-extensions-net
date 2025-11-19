@@ -71,7 +71,6 @@ namespace Azure.Functions.Extensions.SQS
             };
 
             var result = await AmazonSQSClient.ReceiveMessageAsync(getMessageRequest);
-            Console.WriteLine($"Invoked the queue trigger at '{DateTime.UtcNow} UTC'. Fetched messages count: '{result.Messages.Count}'.");
             await Task.WhenAll(result.Messages.Select(message => ProcessMessage(message)));
         }
 
