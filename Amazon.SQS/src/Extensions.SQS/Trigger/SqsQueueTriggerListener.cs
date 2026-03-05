@@ -98,20 +98,39 @@ namespace Azure.Functions.Extensions.SQS
             {
                 int.TryParse(message.Attributes["ApproximateReceiveCount"], out int approximateReceiveCount);
                 int finalApproximateReceiveCount = Math.Min(approximateReceiveCount, 10);
-                
+
                 int baseBackOff = int.TryParse(TriggerParameters.BaseBackOff, out var parsedBaseBackOff) ? parsedBaseBackOff : 30;
                 int maxBackOff = int.TryParse(TriggerParameters.MaxBackOff, out var parsedMaxBackOff) ? parsedMaxBackOff : 960;
                 long visibilityTimeout = Math.Min(baseBackOff * (long)Math.Pow(2, finalApproximateReceiveCount), maxBackOff);
-                int jitter = new Random().Next(1, baseBackOff/2);
-                
+                int jitter = new Random().Next(1, baseBackOff / 2);
+
                 int newVisibilityTimeout = (int)Math.Min(Math.Max(baseBackOff, visibilityTimeout) + jitter, 43200);
-                
+
+                await ChangeMessageVisibility(TriggerParameters.QueueUrl,message.ReceiptHandle, 1);
+            }
+        }
+
+        private async Task ChangeMessageVisibility(string queueUrl, string receiptHandle, int visibilityTimeout)
+        {
+            try
+            {
                 await AmazonSQSClient.ChangeMessageVisibilityAsync(new ChangeMessageVisibilityRequest
                 {
-                    QueueUrl = TriggerParameters.QueueUrl,
-                    ReceiptHandle = message.ReceiptHandle,
-                    VisibilityTimeout = newVisibilityTimeout
+                    QueueUrl = queueUrl,
+                    ReceiptHandle = receiptHandle,
+                    VisibilityTimeout = visibilityTimeout
                 });
+            }
+            catch (AmazonSQSException ex) {
+
+                Boolean isReceiptError = ex.ErrorCode == "ReceiptHandleIsInvalid" || ex.Message.Contains("ReceiptHandle is invalid");
+                if (isReceiptError) {
+                //Ignore error
+                }
+                else
+                {
+                    throw ex; 
+                }
             }
         }
 
