@@ -106,7 +106,11 @@ namespace Azure.Functions.Extensions.SQS
 
                 int newVisibilityTimeout = (int)Math.Min(Math.Max(baseBackOff, visibilityTimeout) + jitter, 43200);
 
-                await ChangeMessageVisibility(TriggerParameters.QueueUrl,message.ReceiptHandle, 1);
+                await ChangeMessageVisibility(TriggerParameters.QueueUrl,message.ReceiptHandle, newVisibilityTimeout);
+            }
+            else
+            {
+                await ChangeMessageVisibility(TriggerParameters.QueueUrl, message.ReceiptHandle, 0);
             }
         }
 
