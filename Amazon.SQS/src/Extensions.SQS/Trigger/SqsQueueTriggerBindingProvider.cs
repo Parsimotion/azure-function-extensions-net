@@ -37,7 +37,8 @@ namespace Azure.Functions.Extensions.SQS
                 QueueUrl = Resolve(triggerAttribute.QueueUrl),
                 ExponentialRetry = Resolve(triggerAttribute.ExponentialRetry),
                 BaseBackOff = Resolve(triggerAttribute.BaseBackOff),
-                MaxBackOff = Resolve(triggerAttribute.MaxBackOff)
+                MaxBackOff = Resolve(triggerAttribute.MaxBackOff),
+                RetryVisibilityTimeOut=Resolve(triggerAttribute.RetryVisibilityTimeOut),
             };
         }
 
