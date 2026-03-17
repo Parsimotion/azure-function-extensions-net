@@ -110,7 +110,9 @@ namespace Azure.Functions.Extensions.SQS
             }
             else
             {
-                await ChangeMessageVisibility(TriggerParameters.QueueUrl, message.ReceiptHandle, 0);
+                int defaultRetryVisibilityTimeout = 5;
+                int retryVisibilityTimeout = int.TryParse(TriggerParameters.RetryVisibilityTimeOut, out var parsedRetryVisibilityTimeout) ? parsedRetryVisibilityTimeout : defaultRetryVisibilityTimeout;
+                await ChangeMessageVisibility(TriggerParameters.QueueUrl, message.ReceiptHandle, retryVisibilityTimeout);
             }
         }
 

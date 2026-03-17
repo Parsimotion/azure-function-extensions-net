@@ -24,5 +24,8 @@ namespace Azure.Functions.Extensions.SQS
         
         [AutoResolve]
         public string MaxBackOff { get; set; }
+
+        [AutoResolve]
+        public string RetryVisibilityTimeOut { get; set; }
     }
 }
