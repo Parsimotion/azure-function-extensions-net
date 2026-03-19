@@ -63,15 +63,33 @@ namespace Azure.Functions.Extensions.SQS
 
         public async Task OnTriggerCallback()
         {
-            var getMessageRequest = new ReceiveMessageRequest
+            try
             {
-                QueueUrl = TriggerParameters.QueueUrl,
-                MaxNumberOfMessages = SqsQueueOptions.Value.MaxNumberOfMessages.Value,
-                AttributeNames = { "All" }
-            };
+                var getMessageRequest = new ReceiveMessageRequest
+                {
+                    QueueUrl = TriggerParameters.QueueUrl,
+                    MaxNumberOfMessages = SqsQueueOptions.Value.MaxNumberOfMessages.Value,
+                    AttributeNames = { "All" }
+                };
 
-            var result = await AmazonSQSClient.ReceiveMessageAsync(getMessageRequest);
-            await Task.WhenAll(result.Messages.Select(message => ProcessMessage(message)));
+                var result = await AmazonSQSClient.ReceiveMessageAsync(getMessageRequest);
+                await Task.WhenAll(result.Messages.Select(async message =>
+                    {
+                        try
+                        {
+                            await ProcessMessage(message);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error processing message {message.MessageId}: {ex}");
+                        }
+                    })
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error receiving messages: {ex}");
+            }
         }
 
         private async Task ProcessMessage(Message message)
@@ -129,7 +147,7 @@ namespace Azure.Functions.Extensions.SQS
 
                 Boolean isReceiptError = ex.ErrorCode == "ReceiptHandleIsInvalid" || ex.Message.Contains("ReceiptHandle is invalid");
                 if (isReceiptError) {
-                //Ignore error
+                    //Ignore error
                 }
                 else
                 {
